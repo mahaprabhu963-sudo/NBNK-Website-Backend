@@ -19,5 +19,10 @@ urlpatterns = [
     path('logout/', views.logout, name='logout'),
     path('log_in/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('login/', views.login_user, name='login_user'),
+    path('make-payment/', views.make_payment, name='make_payment'),
+    path("check-status/", views.check_transaction_status, name="check_status"),
+    path('check-transaction-status/', views.check_transaction_status, name='check_transaction_status'),
+    path("check-transaction-status/", views.check_transaction_status, name="check_transaction_status"),
+    path('check-balance/', views.check_balance, name='check_balance'),
 
 ]

@@ -27,6 +27,14 @@ import cloudinary
 import cloudinary.uploader
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import requests
+from .models import PaymentTransaction
+from .models import TransactionStatus
+import requests
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 
 
 
@@ -122,7 +130,7 @@ def login_user(request):
 
     ADMINS = [
         {"name": "NANTU DAS ADHIKARI", "phone": "9547783824", "password": "Nantu@4655"},
-        {"name": "ARPAN PATRA", "phone": "9876543210", "password": "Arpan@123"},
+        {"name": "ARPAN PATRA", "phone": "7047283086", "password": "7047283086"},
         {"name": "RAHUL SINGH", "phone": "9123456789", "password": "Rahul@987"},
         {"name": "SOMA ROY", "phone": "9000000000", "password": "Soma@999"},
     ]
@@ -156,3 +164,111 @@ def logout(request):
         return Response({"error": str(e)}, status=400)
 # ....................................................................... logout ..........................................................
 
+
+
+def make_payment(request):
+    if request.method == "POST":
+        try:
+            api_token = "sxRINC07qgH5eEo2Tq1jel3LQPd4l39UZNFvURJaSZiQO41huvPDNCpbdx4c"  
+            number = request.POST.get("number")
+            amount = request.POST.get("amount")
+            provider_id = request.POST.get("provider_id")
+            client_id = request.POST.get("client_id")
+
+            
+            url = f"https://booknearby.in/api/telecom/v1/payment"
+            params = {
+                "api_token": api_token,
+                "number": number,
+                "amount": amount,
+                "provider_id": provider_id,
+                "client_id": client_id
+            }
+
+            
+            response = requests.get(url, params=params)
+            data = response.json()
+
+           
+            PaymentTransaction.objects.create(
+                number=number,
+                amount=amount,
+                provider_id=provider_id,
+                client_id=client_id,
+                status=data.get("status", "unknown"),
+                message=data.get("message", ""),
+                operator_ref=data.get("operator_ref", ""),
+                payid=data.get("payid", "")
+            )
+
+            return JsonResponse({
+                "status": "success",
+                "api_response": data
+            })
+
+        except Exception as e:
+            return JsonResponse({"status": "error", "message": str(e)})
+
+    return JsonResponse({"error": "POST request required"})
+
+
+@csrf_exempt
+def check_transaction_status(request):
+    if request.method == "POST":
+        api_token = "sxRINC07qgH5eEo2Tq1jel3LQPd4l39UZNFvURJaSZiQO41huvPDNCpbdx4c"
+
+        
+        client_ids = request.POST.getlist("client_ids")  
+        if not client_ids:
+            client_ids = [request.POST.get("client_id")] 
+
+        results = []
+
+        for cid in client_ids:
+            url = "https://booknearby.in/api/telecom/v1/check-status"
+            params = {"api_token": api_token, "client_id": cid}
+
+            try:
+                response = requests.get(url, params=params)
+                data = response.json()
+
+
+                if "transaction" in data:
+                    txn = data["transaction"]
+                    TransactionStatus.objects.create(
+                        client_id=txn.get("client_id"),
+                        provider=txn.get("provider"),
+                        number=txn.get("number"),
+                        amount=txn.get("amount"),
+                        status=txn.get("status"),
+                        txnid=txn.get("txnid"),
+                        date=txn.get("date"),
+                        response_data=data
+                    )
+
+                results.append(data)
+
+            except Exception as e:
+                results.append({"client_id": cid, "error": str(e)})
+
+        return JsonResponse({"results": results})
+
+    return JsonResponse({"error": "POST method required"}, status=400)
+
+
+def check_balance(request):
+    """
+    Django API view to check your BookNearby wallet balance.
+    """
+
+    url = "https://booknearby.in/api/telecom/v1/check-balance"
+    params = {
+        "api_token": "sxRINC07qgH5eEo2Tq1jel3LQPd4l39UZNFvURJaSZiQO41huvPDNCpbdx4c"
+    }
+
+    try:
+        response = requests.get(url, params=params)
+        data = response.json()
+        return JsonResponse(data, safe=False)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
