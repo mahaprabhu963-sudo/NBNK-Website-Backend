@@ -1,0 +1,14 @@
+{
+  "build": [
+    "python"
+  ],
+  "steps": {
+    "build": [
+      "python -m pip install --upgrade pip",
+      "python -m pip install -r Backend/requirements.txt"
+    ],
+    "deploy": [
+      "cd Backend && python manage.py runserver 0.0.0.0:$PORT"
+    ]
+  }
+}

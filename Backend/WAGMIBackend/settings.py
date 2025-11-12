@@ -48,8 +48,9 @@ INSTALLED_APPS = [
 
     # Your custom apps
     'WAGMIBackend',
-    'accounts',
+    
     'authapp',
+    
 ]
 
 
@@ -156,6 +157,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://10.2.0.2:5173",
     "http://192.168.1.103:5173",
     "https://smart-indiahackathon2025.vercel.app",
+    "https://booknearby.in",
 ]
 CORS_ALLOW_HEADERS = ['*']
 
@@ -175,6 +177,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://10.2.0.2:5173",
     "http://192.168.1.103:5173",
     "https://smart-indiahackathon2025.vercel.app",
+    "https://booknearby.in",
 ]
 
 CORS_ALLOW_METHODS = [
