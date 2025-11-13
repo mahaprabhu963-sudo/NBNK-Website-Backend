@@ -158,6 +158,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://192.168.1.103:5173",
     "https://smart-indiahackathon2025.vercel.app",
     "https://booknearby.in",
+    "https://nbnk-website-backend-production.up.railway.app",
 ]
 CORS_ALLOW_HEADERS = ['*']
 
@@ -178,6 +179,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://192.168.1.103:5173",
     "https://smart-indiahackathon2025.vercel.app",
     "https://booknearby.in",
+    "https://nbnk-website-backend-production.up.railway.app",
 ]
 
 CORS_ALLOW_METHODS = [
