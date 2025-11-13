@@ -35,6 +35,17 @@ from .models import TransactionStatus
 import requests
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.core.files.storage import default_storage
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.core.files.storage import default_storage
+from .models import AdminRegistration
+from django.core.mail import send_mail
+from rest_framework import status
+from authapp.models import AdminRegistration
+from django.contrib.auth.hashers import check_password
 
 
 
@@ -57,6 +68,17 @@ cloudinary.config(
 )
 # ............................................................... CLOUDINARY ......................................
 
+# ............................................................... Mail Send Configration ......................................
+# >>  https://myaccount.google.com/apppasswords
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'upolabdhi6@gmail.com'        
+EMAIL_HOST_PASSWORD = 'bfzehmscbwtaryno'       
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+# ............................................................... Mail Send Configration ......................................
+
 
 
 
@@ -67,7 +89,7 @@ def sign_in(request):
         username = request.data.get('username')
         password = request.data.get('password')
         email = request.data.get('email')
-        #print(username)
+        
         if not username or not password or not email:
             return Response({"error": "Username, password, and email are required"}, status=HTTP_400_BAD_REQUEST)
 
@@ -128,27 +150,25 @@ def login_user(request):
     phone = request.data.get('phone_number')
     password = request.data.get('password')
 
-    ADMINS = [
-        {"name": "NANTU DAS ADHIKARI", "phone": "9547783824", "password": "Nantu@4655"},
-        {"name": "ARPAN PATRA", "phone": "7047283086", "password": "7047283086"},
-        {"name": "RAHUL SINGH", "phone": "9123456789", "password": "Rahul@987"},
-        {"name": "SOMA ROY", "phone": "9000000000", "password": "Soma@999"},
-    ]
+    print("Incoming Data:", request.data)
 
+    
     if not phone or not password:
-        return Response({'error': 'Phone number and password required'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': 'Phone number and password are required'}, status=status.HTTP_400_BAD_REQUEST)
 
-
-    matched_admin = next((admin for admin in ADMINS if admin["phone"] == phone and admin["password"] == password), None)
-
-    if matched_admin:
-        return Response({
-            'message': 'Login successful',
-            'redirect': '/AdminDashboard',
-            'admin_name': matched_admin["name"]
-        }, status=status.HTTP_200_OK)
-    else:
+    
+    try:
+        admin = AdminRegistration.objects.get(phone=phone, password=password)
+    except AdminRegistration.DoesNotExist:
         return Response({'error': 'Invalid phone number or password'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    
+    return Response({
+        'message': 'Login successful',
+        'redirect': '/AdminDashboard',
+        'admin_name': f"{admin.first_name} {admin.second_name}"
+    }, status=status.HTTP_200_OK)
+
 # ....................................................................... Login ..........................................................
 
 # ....................................................................... logout ..........................................................
@@ -165,7 +185,7 @@ def logout(request):
 # ....................................................................... logout ..........................................................
 
 
-
+# ....................................................................... make_payment ..........................................................
 def make_payment(request):
     if request.method == "POST":
         try:
@@ -210,8 +230,9 @@ def make_payment(request):
             return JsonResponse({"status": "error", "message": str(e)})
 
     return JsonResponse({"error": "POST request required"})
+# ....................................................................... make_payment ..........................................................
 
-
+# ....................................................................... check_transaction_status ..........................................................
 @csrf_exempt
 def check_transaction_status(request):
     if request.method == "POST":
@@ -254,8 +275,9 @@ def check_transaction_status(request):
         return JsonResponse({"results": results})
 
     return JsonResponse({"error": "POST method required"}, status=400)
+# ....................................................................... check_transaction_status ..........................................................
 
-
+# ....................................................................... check_balance ..........................................................
 def check_balance(request):
     """
     Django API view to check your BookNearby wallet balance.
@@ -272,3 +294,60 @@ def check_balance(request):
         return JsonResponse(data, safe=False)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+# ....................................................................... check_balance ..........................................................
+
+# ....................................................................... admin_register ..........................................................
+@csrf_exempt
+def admin_register(request):
+    if request.method == "POST":
+        first_name = request.POST.get("first_name")
+        second_name = request.POST.get("second_name")
+        email = request.POST.get("email")
+        phone = request.POST.get("phone")
+        password = request.POST.get("password")
+        photo = request.FILES.get("photo")
+
+       
+        if not all([first_name, second_name, email, phone, password]):
+            return JsonResponse({"error": "All fields are required"}, status=400)
+
+        if AdminRegistration.objects.filter(email=email).exists():
+            return JsonResponse({"error": "Email already registered"}, status=400)
+
+        
+        photo_path = None
+        if photo:
+            photo_path = default_storage.save(f"uploads/{photo.name}", photo)
+
+        
+        admin = AdminRegistration.objects.create(
+            first_name=first_name,
+            second_name=second_name,
+            email=email,
+            phone=phone,
+            password=password,  
+            photo=photo_path,
+        )
+
+        
+        subject = "NBNK Admin Registration Successful ✅"
+        message = (
+            f"Dear {first_name} {second_name},\n\n"
+            f"Welcome to NBNK FinTech!\n\n"
+            f"Your admin account has been successfully created.\n\n"
+            f"🔑 Login ID (Phone): {phone}\n"
+            f"🔐 Password: {password}\n\n"
+            f"Please keep this information safe.\n\n"
+            f"Best Regards,\n"
+            f"NBNK FinTech Team"
+        )
+
+        try:
+            send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [email])
+        except Exception as e:
+            return JsonResponse({"error": f"Admin created but email failed: {str(e)}"}, status=500)
+
+        return JsonResponse({"message": "Admin registered successfully and email sent", "admin_id": admin.id}, status=200)
+
+    return JsonResponse({"error": "Invalid request"}, status=400)
+# ....................................................................... admin_register ..........................................................

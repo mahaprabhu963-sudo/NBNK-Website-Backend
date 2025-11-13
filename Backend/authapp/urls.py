@@ -24,5 +24,6 @@ urlpatterns = [
     path('check-transaction-status/', views.check_transaction_status, name='check_transaction_status'),
     path("check-transaction-status/", views.check_transaction_status, name="check_transaction_status"),
     path('check-balance/', views.check_balance, name='check_balance'),
+    path('admin-register/', views.admin_register, name='admin_register'),
 
 ]
