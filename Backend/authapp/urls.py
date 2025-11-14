@@ -12,6 +12,8 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
     TokenBlacklistView
 )
+from django.conf.urls.static import static
+from django.conf import settings
 
 urlpatterns = [
     path('register/', views.sign_in, name="sign_in"),
@@ -26,4 +28,4 @@ urlpatterns = [
     path('check-balance/', views.check_balance, name='check_balance'),
     path('admin-register/', views.admin_register, name='admin_register'),
 
-]
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

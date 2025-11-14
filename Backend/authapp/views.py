@@ -46,6 +46,8 @@ from django.core.mail import send_mail
 from rest_framework import status
 from authapp.models import AdminRegistration
 from django.contrib.auth.hashers import check_password
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
 
 
 
@@ -74,8 +76,8 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'upolabdhi6@gmail.com'        
-EMAIL_HOST_PASSWORD = 'bfzehmscbwtaryno'       
+EMAIL_HOST_USER = 'arpan70047283086@gmail.com'        
+EMAIL_HOST_PASSWORD = 'aypj ffmi sglk cttq'       
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 # ............................................................... Mail Send Configration ......................................
 
@@ -152,22 +154,40 @@ def login_user(request):
 
     print("Incoming Data:", request.data)
 
-    
     if not phone or not password:
-        return Response({'error': 'Phone number and password are required'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {'error': 'Phone number and password are required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
-    
+
     try:
         admin = AdminRegistration.objects.get(phone=phone, password=password)
     except AdminRegistration.DoesNotExist:
-        return Response({'error': 'Invalid phone number or password'}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response(
+            {'error': 'Invalid phone number or password'},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
 
-    
+    photo_url = None
+    if admin.photo:
+        try:
+            photo_url = request.build_absolute_uri(admin.photo.url)
+        except:
+            photo_url = None
+
     return Response({
         'message': 'Login successful',
         'redirect': '/AdminDashboard',
-        'admin_name': f"{admin.first_name} {admin.second_name}"
+        'admin_id': admin.id,
+        'admin_name': f"{admin.first_name} {admin.second_name}",
+        'email': admin.email,
+        'phone': admin.phone,
+        'photo': photo_url
     }, status=status.HTTP_200_OK)
+
+
+
 
 # ....................................................................... Login ..........................................................
 
@@ -300,6 +320,7 @@ def check_balance(request):
 @csrf_exempt
 def admin_register(request):
     if request.method == "POST":
+
         first_name = request.POST.get("first_name")
         second_name = request.POST.get("second_name")
         email = request.POST.get("email")
@@ -307,17 +328,20 @@ def admin_register(request):
         password = request.POST.get("password")
         photo = request.FILES.get("photo")
 
-       
         if not all([first_name, second_name, email, phone, password]):
-            return JsonResponse({"error": "All fields are required"}, status=400)
+            return JsonResponse({"error": "All fields required"}, status=400)
 
         if AdminRegistration.objects.filter(email=email).exists():
-            return JsonResponse({"error": "Email already registered"}, status=400)
+            return JsonResponse({"error": "Email already exists"}, status=400)
 
         
         photo_path = None
         if photo:
-            photo_path = default_storage.save(f"uploads/{photo.name}", photo)
+            file_name = f"uploads/{photo.name}"
+            saved_path = default_storage.save(file_name, ContentFile(photo.read()))
+
+            
+            photo_path = settings.MEDIA_URL + saved_path  
 
         
         admin = AdminRegistration.objects.create(
@@ -331,23 +355,27 @@ def admin_register(request):
 
         
         subject = "NBNK Admin Registration Successful ✅"
-        message = (
-            f"Dear {first_name} {second_name},\n\n"
-            f"Welcome to NBNK FinTech!\n\n"
-            f"Your admin account has been successfully created.\n\n"
-            f"🔑 Login ID (Phone): {phone}\n"
-            f"🔐 Password: {password}\n\n"
-            f"Please keep this information safe.\n\n"
-            f"Best Regards,\n"
-            f"NBNK FinTech Team"
-        )
+        #message = (
+            #f"Dear {first_name} {second_name},\n\n"
+            #f"Welcome to NBNK FinTech!\n\n"
+            #f"Your admin account has been successfully created.\n\n"
+            #f"🔑 Login ID (Phone): {phone}\n"
+            #f"🔐 Password: {password}\n\n"
+            #f"Please keep this information safe.\n\n"
+            #f"Best Regards,\n"
+            #f"NBNK FinTech Team"
+        #)
 
-        try:
-            send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [email])
-        except Exception as e:
-            return JsonResponse({"error": f"Admin created but email failed: {str(e)}"}, status=500)
+        #try:
+            #send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [email])
+        #except Exception as e:
+            #return JsonResponse({"error": f"Admin created but email failed: {str(e)}"}, status=500)
 
-        return JsonResponse({"message": "Admin registered successfully and email sent", "admin_id": admin.id}, status=200)
+        return JsonResponse({
+            "message": "Admin registered successfully",
+            "admin_id": admin.id,
+            "photo": photo_path
+        }, status=200)
 
     return JsonResponse({"error": "Invalid request"}, status=400)
 # ....................................................................... admin_register ..........................................................
